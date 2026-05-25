@@ -1,0 +1,47 @@
+{
+  "name": "connection_network",
+  "version": "1.0.0",
+  "description": "人际关系三维拓扑图",
+  "private": true,
+  "main": "electron/main.js",
+  "scripts": {
+    "build:frontend": "cd frontend && npm run build",
+    "build:backend": "cd backend && npm run build",
+    "build": "npm run build:frontend && npm run build:backend",
+    "dev": "concurrently \"cd backend && npm run dev\" \"cd frontend && npm run dev\"",
+    "electron:pack": "npm run build && electron-builder",
+    "electron:build": "npm run build && electron-builder --win"
+  },
+  "build": {
+    "appId": "com.example.connection-network",
+    "productName": "人际关系三维拓扑图",
+    "electronDist": "node_modules/electron/dist",
+    "directories": {
+      "output": "dist-electron"
+    },
+    "files": [
+      "frontend/dist/**/*",
+      "backend/dist/**/*",
+      "electron/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "backend/node_modules",
+        "to": "node_modules"
+      },
+      {
+        "from": "backend/package.json",
+        "to": "backend/package.json"
+      }
+    ],
+    "win": {
+      "target": "portable",
+      "signAndEditExecutable": false
+    }
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "electron": "^30.5.1",
+    "electron-builder": "^24.13.3"
+  }
+}

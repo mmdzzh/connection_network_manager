@@ -146,3 +146,160 @@ npm run build
 # Electron 打包
 npm run electron:build
 ```
+
+
+---
+
+## 打包并发布 Release（含可执行文件）
+
+### 打包产物说明
+
+| 产物 | 路径 | 大小 | 说明 |
+|---|---|---|---|
+| Portable EXE | `dist-electron/人际关系三维拓扑图 1.0.0.exe` | ~78 MB | 免安装，双击直接运行 |
+| 解压版目录 | `dist-electron/win-unpacked/` | ~200 MB | 包含所有依赖文件 |
+
+### 完整步骤
+
+#### 步骤 1：确认代码已推送
+```bash
+git status   # 确保 working tree clean
+git log --oneline -3
+```
+如有未提交的修改，先提交并推送：
+```bash
+git add .
+git commit -m "release: v1.0.0"
+git push origin main
+```
+
+#### 步骤 2：确保开发服务器全部关闭
+**必须关闭所有占用 3001 端口的进程**，否则打包后的应用启动会因端口冲突而崩溃。
+```bash
+# Windows PowerShell
+ taskkill /F /IM node.exe
+# 或
+Get-NetTCPConnection -LocalPort 3001 | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force }
+```
+
+#### 步骤 3：重新编译前后端
+```bash
+# 根目录下执行
+npm run build
+```
+这会依次执行：
+1. `cd frontend && npm run build` —— Vite 构建生产版前端
+2. `cd backend && npm run build` —— TypeScript 编译后端
+
+#### 步骤 4：Electron 打包
+```bash
+# 根目录下执行
+npx electron-builder --win
+```
+输出目录：`dist-electron/`
+- `人际关系三维拓扑图 1.0.0.exe` —— 最终交付物
+- `win-unpacked/` —— 解压版（调试用）
+
+> 打包配置位于根目录 `package.json` 的 `build` 字段：
+> - `target: "portable"` —— 生成单文件免安装 exe
+> - `electronDist: "node_modules/electron/dist"` —— 使用本地 Electron，避免重复下载
+> - `extraResources` —— 将 `backend/node_modules` 映射到 `resources/node_modules`，解决 native module 加载
+
+#### 步骤 5：在 GitHub 上创建 Release 并上传 exe
+
+1. 打开浏览器访问：
+   ```
+   https://github.com/mmdzzh/connection_network_manager/releases
+   ```
+
+2. 点击右侧绿色按钮 **"Create a new release"**
+
+3. 填写发布信息：
+   - **Choose a tag**: 选择 `v1.0.0`（或点击 "Create new tag" 输入新版本如 `v1.0.1`）
+   - **Release title**: `v1.0.0 - 人际关系三维拓扑图`
+   - **Description**:
+     ```markdown
+     ## 功能特性
+     - 三维力导向关系拓扑图可视化
+     - 人员管理（姓名、简介、头像）
+     - 支持颜色头像和本地图片头像上传（自动缩放至 256x256）
+     - 关系建立并支持关系类型标注（同事/家人/同学/恋人/师生/邻居/合作伙伴/其他）
+     - 数据导出/导入（JSON 格式，图片内嵌 base64）
+     - 一键清零所有数据
+     - Electron 桌面端打包（Windows portable，免安装）
+
+     ## 系统要求
+     - Windows 10 / Windows 11
+     - 无需安装 Node.js
+     - 数据自动存储在 `%APPDATA%/connection_network/`
+
+     ## 技术栈
+     - 前端：React 18 + Vite + Three.js + @react-three/fiber + Tailwind CSS
+     - 后端：Express + SQLite3
+     - 桌面端：Electron 30.5.1 + electron-builder
+     ```
+
+4. 上传打包产物：
+   - 在页面下方的 **"Attach binaries by dropping them here or selecting them."** 区域
+   - 将 `dist-electron/人际关系三维拓扑图 1.0.0.exe` 拖入，或点击选择文件
+   - 等待上传完成（~78 MB，根据网速需要几秒到几分钟）
+
+5. 勾选/取消勾选：
+   - ✅ **Set as the latest release**（设为最新 release）
+   - ☐ **This is a pre-release**（非预发布版，不勾选）
+
+6. 点击 **"Publish release"** 按钮发布
+
+#### 步骤 6：验证 Release
+
+发布后，Release 页面 URL 形如：
+```
+https://github.com/mmdzzh/connection_network_manager/releases/tag/v1.0.0
+```
+
+确认：
+- [ ] 标题和描述正确显示
+- [ ] Assets 列表中有 `人际关系三维拓扑图 1.0.0.exe`
+- [ ] 点击 Download 可以正常下载
+
+#### 步骤 7：本地快速验证打包产物
+
+下载或直接运行本地 `dist-electron/人际关系三维拓扑图 1.0.0.exe`：
+1. **确保没有 dev 服务器占用 3001 端口**
+2. 双击 exe，等待 3~5 秒启动
+3. 应用窗口出现后：
+   - 点击 **+ 添加朋友** → 输入姓名 → 提交，确认创建成功
+   - 点击 **↔ 建立关系** → 选择两人 + 关系类型 → 提交
+   - 观察 3D 图谱中连线和关系类型标签
+   - 点击 **↓ 导出** → 确认 JSON 文件下载成功
+   - 点击 **⚠ 清零所有数据** → 确认后列表清空
+   - 点击 **↑ 导入** → 选择刚才导出的 JSON → 确认数据恢复
+
+---
+
+## Release 版本管理备忘
+
+### 发新版时的 checklist
+```bash
+# 1. 更新版本号（package.json）
+# 2. 重新编译 + 打包
+npm run build
+npx electron-builder --win
+
+# 3. 提交版本更新
+git add package.json package-lock.json
+git commit -m "release: bump version to v1.x.x"
+git push origin main
+
+# 4. 打新 tag
+git tag -a v1.x.x -m "Release v1.x.x"
+git push origin v1.x.x
+
+# 5. 去 GitHub Releases 页面创建新 Release 并上传 exe
+```
+
+### 版本号规则
+- `v1.0.0` —— 主版本.次版本.修订号
+- 修复 bug：修订号 +1（如 `v1.0.1`）
+- 新增功能：次版本 +1（如 `v1.1.0`）
+- 重大重构：主版本 +1（如 `v2.0.0`）
